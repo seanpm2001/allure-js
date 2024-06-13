@@ -1,15 +1,13 @@
 import type Cypress from "cypress";
 import { ContentType, LabelName, Stage } from "allure-js-commons";
+import type { LinkType } from "allure-js-commons";
 import { extractMetadataFromString } from "allure-js-commons/sdk";
 import { FileSystemWriter, ReporterRuntime, getSuiteLabels } from "allure-js-commons/sdk/reporter";
 import type { CypressRuntimeMessage, CypressTestEndRuntimeMessage, CypressTestStartRuntimeMessage } from "./model.js";
 
 export type AllureCypressConfig = {
   resultsDir?: string;
-  links?: {
-    type: string;
-    urlTemplate: string;
-  }[];
+  links?: Record<LinkType, { urlTemplate: string }> | Record<string, { urlTemplate: string }>;
 };
 
 export class AllureCypress {

@@ -28,7 +28,7 @@ export default class AllureCucumberReporter extends Formatter {
   private readonly afterHooks: Record<string, TestCaseHookDefinition> = {};
   private readonly beforeHooks: Record<string, TestCaseHookDefinition> = {};
 
-  private linksConfigs: LinkConfig[] = [];
+  private linksConfigs: LinkConfig = {};
   private labelsConfigs: LabelConfig[] = [];
   private allureRuntime: ReporterRuntime;
 
@@ -62,7 +62,7 @@ export default class AllureCucumberReporter extends Formatter {
       links: links as Config["links"] | undefined,
       ...rest,
     });
-    this.linksConfigs = links || [];
+    this.linksConfigs = links || {};
     this.labelsConfigs = labels || [];
 
     options.eventBroadcaster.on("envelope", this.parseEnvelope.bind(this));
@@ -86,7 +86,7 @@ export default class AllureCucumberReporter extends Formatter {
   private get tagsIgnorePatterns(): RegExp[] {
     const { labelsConfigs, linksConfigs } = this;
 
-    return [...labelsConfigs, ...linksConfigs].flatMap(({ pattern }) => pattern);
+    return [...labelsConfigs, ...Object.entries(linksConfigs).map(([, v]) => v)].flatMap(({ pattern }) => pattern);
   }
 
   private parseEnvelope(envelope: messages.Envelope) {
@@ -155,18 +155,18 @@ export default class AllureCucumberReporter extends Formatter {
     const tagKeyRe = /^@\S+=/;
     const links: Link[] = [];
 
-    if (this.linksConfigs.length === 0) {
+    if (Object.keys(this.linksConfigs).length === 0) {
       return links;
     }
 
-    this.linksConfigs.forEach((matcher) => {
+    Object.entries(this.linksConfigs).forEach(([type, matcher]) => {
       const matchedTags = tags.filter((tag) => matcher.pattern.some((pattern) => pattern.test(tag.name)));
       const matchedLinks = matchedTags.map((tag) => {
         const tagValue = tag.name.replace(tagKeyRe, "");
 
         return {
           url: matcher.urlTemplate.replace(/%s$/, tagValue) || tagValue,
-          type: matcher.type,
+          type,
         };
       });
 

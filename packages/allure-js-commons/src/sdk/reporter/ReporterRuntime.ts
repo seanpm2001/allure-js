@@ -1,6 +1,6 @@
 /* eslint max-lines: 0 */
 import { extname } from "path";
-import type { Attachment, AttachmentOptions, FixtureResult, Link, StepResult, TestResult } from "../../model.js";
+import type { Attachment, AttachmentOptions, FixtureResult, StepResult, TestResult } from "../../model.js";
 import { Stage } from "../../model.js";
 import type {
   Category,
@@ -19,8 +19,8 @@ import { Notifier } from "./Notifier.js";
 import { MutableAllureContextHolder, StaticContextProvider } from "./context/StaticAllureContextProvider.js";
 import type { AllureContextProvider } from "./context/types.js";
 import { createFixtureResult, createStepResult, createTestResult } from "./factory.js";
-import type { Config, FixtureType, FixtureWrapper, LinkConfig, TestScope, Writer } from "./types.js";
-import { deepClone, randomUuid } from "./utils.js";
+import type { Config, FixtureType, FixtureWrapper, LinkTemplates, TestScope, Writer } from "./types.js";
+import { deepClone, formatLinks, randomUuid } from "./utils.js";
 import { getTestResultHistoryId, getTestResultTestCaseId } from "./utils.js";
 import { buildAttachmentFileName } from "./utils/attachments.js";
 import { resolveWriter } from "./writer/loader.js";
@@ -144,7 +144,7 @@ type MessageTargets = {
 export class ReporterRuntime {
   private readonly state = new LifecycleState();
   private notifier: Notifier;
-  private links: LinkConfig[] = [];
+  private linkTemplates: LinkTemplates;
   private contextProvider: AllureContextProvider;
   writer: Writer;
   categories?: Category[];
@@ -153,14 +153,14 @@ export class ReporterRuntime {
   constructor({
     writer,
     listeners = [],
-    links = [],
+    links = {},
     environmentInfo,
     categories,
     contextProvider = StaticContextProvider.wrap(new MutableAllureContextHolder()),
   }: Config) {
     this.writer = resolveWriter(writer);
     this.notifier = new Notifier({ listeners });
-    this.links = links;
+    this.linkTemplates = links;
     this.categories = categories;
     this.environmentInfo = environmentInfo;
     this.contextProvider = contextProvider;
@@ -784,7 +784,7 @@ export class ReporterRuntime {
 
   private handleMetadataMessage = (message: RuntimeMetadataMessage, { test, root, step }: MessageTargets) => {
     const { links = [], attachments = [], displayName, parameters = [], labels = [], ...rest } = message.data;
-    const formattedLinks = this.formatLinks(links);
+    const formattedLinks = formatLinks(this.linkTemplates, links);
 
     if (displayName) {
       root.name = displayName;
@@ -1045,41 +1045,6 @@ export class ReporterRuntime {
       // eslint-disable-next-line no-console
       console.error(`No current step to ${op}!`);
     }
-  };
-
-  private formatLinks = (links: Link[]) => {
-    if (!this.links.length) {
-      return links;
-    }
-
-    return links.map((link) => {
-      // TODO:
-      // @ts-ignore
-      const matcher = this.links?.find?.(({ type }) => type === link.type);
-
-      // TODO:
-      if (!matcher || link.url.startsWith("http")) {
-        return link;
-      }
-
-      const url = matcher.urlTemplate.replace("%s", link.url);
-
-      // we shouldn't need to reassign already assigned name
-      if (link.name || !matcher.nameTemplate) {
-        return {
-          ...link,
-          url,
-        };
-      }
-
-      const name = matcher.nameTemplate.replace("%s", link.url);
-
-      return {
-        ...link,
-        name,
-        url,
-      };
-    });
   };
 
   private introduceTestIntoScopes = (testUuid: string, scopeUuid: string) => {

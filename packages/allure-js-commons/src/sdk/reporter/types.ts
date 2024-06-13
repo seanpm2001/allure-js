@@ -2,6 +2,7 @@ import type {
   FixtureResult,
   Label,
   Link,
+  LinkType,
   Parameter,
   StepResult,
   TestResult,
@@ -61,11 +62,13 @@ export interface LifecycleListener {
   afterStepStop?: (result: StepResult) => void;
 }
 
-export interface LinkConfig {
-  type: string;
+export type LinkTemplateEntry = {
   urlTemplate: string;
   nameTemplate?: string;
-}
+};
+
+// We use union of records instead of Record<LinkType | string, ...> to keep the IDE autocompletion.
+export type LinkTemplates = Record<LinkType, LinkTemplateEntry> | Record<string, LinkTemplateEntry>;
 
 export type WriterDescriptor = [cls: string, ...args: readonly unknown[]] | string;
 
@@ -74,7 +77,7 @@ export interface Config {
   readonly writer: Writer | WriterDescriptor;
   // TODO: handle lifecycle hooks here
   readonly testMapper?: (test: TestResult) => TestResult | null;
-  readonly links?: LinkConfig[];
+  readonly links?: LinkTemplates;
   readonly listeners?: LifecycleListener[];
   readonly environmentInfo?: EnvironmentInfo;
   readonly categories?: Category[];
